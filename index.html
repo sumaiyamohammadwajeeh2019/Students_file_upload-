@@ -4,20 +4,33 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EduDeposit Global - Dr. Sumaiya Mohammad</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d47a1">
 </head>
 <body class="bg-slate-100">
 <header class="bg-[#0d47a1] text-white p-4 sticky top-0 z-50">
 <div class="flex justify-between items-center">
-<div><h1 class="font-bold text-[14px]">🎓 EduDeposit Global - FILE SYSTEM</h1><p class="text-[10px] opacity-80">Student Upload → Teacher Received | By Dr. Sumaiya Mohammad, The Physiologist</p></div>
+<div><h1 class="font-bold text-[14px]">🎓 EduDeposit Global - FILE SYSTEM</h1><p class="text-[10px] opacity-80">Auto Time of Deposition | By Dr. Sumaiya Mohammad</p></div>
 <button onclick="teacherLogin()" class="bg-white text-blue-900 px-3 py-1 rounded text-xs font-bold">Teacher Login</button>
 </div>
 </header>
 
-<!-- STUDENT PORTION - NO DELETE -->
+<div id="loginModal" class="hidden fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+  <div class="bg-white p-6 rounded-xl w-full max-w-sm">
+    <h2 class="font-bold mb-3 text-sm">Teacher Login</h2>
+    <input id="pinInput" type="password" placeholder="Enter Teacher PIN" class="w-full border p-3 rounded mb-3 text-sm">
+    <div class="flex gap-2">
+      <button onclick="checkPin()" class="flex-1 bg-[#0d47a1] text-white py-3 rounded font-bold">Login</button>
+      <button onclick="closeLogin()" class="flex-1 bg-gray-200 py-3 rounded">Cancel</button>
+    </div>
+    <p id="pinError" class="text-red-600 text-xs mt-2 hidden text-center">Wrong PIN!</p>
+  </div>
+</div>
+
 <div id="studentMode" class="p-3 max-w-6xl mx-auto">
 <div class="grid md:grid-cols-3 gap-3">
 <div class="bg-white p-4 rounded-xl shadow">
-<h2 class="font-bold mb-3 text-sm">+ Add Student (Global)</h2>
+<h2 class="font-bold mb-3 text-sm">+ Add Student</h2>
 <input id="sRoll" placeholder="ID/Roll" class="w-full border p-3 mb-3 rounded text-sm">
 <input id="sName" placeholder="Name" class="w-full border p-3 mb-3 rounded text-sm">
 <input id="sYear" placeholder="1st yr" value="1st yr" class="w-full border p-3 mb-3 rounded text-sm">
@@ -26,18 +39,29 @@
 </div>
 <div class="bg-white p-4 rounded-xl shadow">
 <h2 class="font-bold mb-3 text-sm">+ Create Task</h2>
-<select id="cType" class="w-full border p-2 mb-2 rounded text-sm"><option>Assignment</option><option>Practical Notebook</option><option>Integrated teaching</option><option>Lab Notebook</option></select>
+<select id="cType" class="w-full border p-2 mb-2 rounded text-sm">
+  <option>Integrated Teaching Assignment</option>
+  <option>Practical Notebook</option>
+  <option>Lab Notebook</option>
+  <option>Assignment</option>
+  <option>Case Presentation</option>
+  <option>Tutorial Assignment</option>
+  <option>Field Visit Report</option>
+  <option>Presentation</option>
+  <option>Other</option>
+</select>
 <input id="cSub" value="Physiology" class="w-full border p-2 mb-2 rounded text-sm">
-<input id="cTitle" value="Integrated teaching" class="w-full border p-2 mb-2 rounded text-sm">
-<label class="text-[11px]">Due Date</label><input id="cDue" type="date" value="2026-10-11" class="w-full border p-2 mb-3 rounded text-sm">
-<button onclick="createTask()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">Create</button>
+<input id="cTitle" placeholder="Task Title" value="Task 1" class="w-full border p-2 mb-2 rounded text-sm">
+<label class="text-[11px]">Due Date</label><input id="cDue" type="date" class="w-full border p-2 mb-3 rounded text-sm">
+<button onclick="createTask()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">Create Task</button>
 </div>
 <div class="bg-white p-4 rounded-xl shadow border-2 border-green-500">
-<h2 class="font-bold mb-3 text-sm">Upload Assignment</h2>
+<h2 class="font-bold mb-3 text-sm">Upload Assignment (Auto Time)</h2>
 <select id="stSelect" class="w-full border p-2 mb-2 rounded text-sm"></select>
 <select id="taskSelect" class="w-full border p-2 mb-2 rounded text-sm"></select>
 <label class="text-[11px]">Submission Date</label><input id="subDate" type="date" class="w-full border p-2 mb-2 rounded text-sm">
 <input type="file" id="fileInput" class="w-full border p-2 mb-2 rounded text-sm bg-slate-50">
+<p class="text-[10px] text-gray-500 mb-2">⏰ Time of deposition will be auto-saved</p>
 <button onclick="uploadFile()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold">Upload</button>
 <p id="upMsg" class="text-xs text-center mt-2"></p>
 </div>
@@ -45,14 +69,13 @@
 <div id="myList" class="mt-4"></div>
 </div>
 
-<!-- TEACHER PORTION - WITH DELETE + MARKS + REMARKS -->
 <div id="teacherMode" class="hidden p-3 max-w-7xl mx-auto">
-<div class="bg-white p-3 rounded shadow mb-3 flex justify-between items-center">
-<div><b>Teacher Panel - Dr. Sumaiya Mohammad</b><br><span class="text-xs">Total Uploads: <b id="upCount">0</b></span></div>
-<button onclick="backToStudent()" class="bg-slate-200 px-3 py-1 rounded text-sm">← Back to Student</button>
+<div class="bg-white p-3 rounded shadow mb-3 flex justify-between">
+<div><b>Teacher Panel</b> | Uploads: <b id="upCount">0</b></div>
+<button onclick="backToStudent()" class="bg-slate-200 px-3 py-1 rounded text-sm">← Back</button>
 </div>
 <div class="bg-white rounded-xl shadow overflow-auto">
-<table class="w-full text-[11px]"><thead class="bg-[#0d47a1] text-white"><tr><th class="p-2 text-left">Student</th><th>Task</th><th>File</th><th>Sub Date</th><th>Marks</th><th>Remarks</th><th>Action</th></tr></thead><tbody id="teacherTable"></tbody></table>
+<table class="w-full text-[11px]"><thead class="bg-[#0d47a1] text-white"><tr><th class="p-2 text-left">Student</th><th>Type</th><th>File + Deposition Time</th><th>Sub Date</th><th>Marks</th><th>Remarks</th><th>Action</th></tr></thead><tbody id="teacherTable"></tbody></table>
 </div>
 </div>
 
@@ -63,12 +86,11 @@ let uploads=JSON.parse(localStorage.getItem('edu_up_final')||'[]');
 let fileData='', fileName='';
 document.getElementById('fileInput').addEventListener('change', e=>{
  let f=e.target.files[0]; if(!f)return;
- if(f.size>4*1024*1024){alert('Max 4MB'); return;}
  fileName=f.name; let r=new FileReader(); r.onload=ev=>fileData=ev.target.result; r.readAsDataURL(f);
 });
 function registerStudent(){
  if(!sRoll.value||!sName.value)return alert('Enter ID and Name');
- if(students.find(s=>s.id==sRoll.value)){alert('Already exists'); return;}
+ if(students.find(s=>s.id==sRoll.value))return alert('Already exists');
  students.push({id:sRoll.value,name:sName.value,year:sYear.value});
  localStorage.setItem('edu_stu_final',JSON.stringify(students));
  regMsg.innerText='✅ Saved'; sRoll.value=''; sName.value=''; render();
@@ -85,39 +107,43 @@ function uploadFile(){
  let st=students.find(s=>s.id==stSelect.value); let tk=tasks.find(t=>t.id==taskSelect.value);
  let due=new Date(tk.due); let sub=new Date(subDate.value); let diff=Math.ceil((sub-due)/864e5);
  let status=diff<=0?'On Time':'Late '+diff+'d';
- uploads.push({id:Date.now(),student:st,task:tk,subDateInput:subDate.value,fileName,fileData,status,received:false,marks:'',remarks:'',receivedAt:''});
+ let now = new Date();
+ let depositionTime = now.toLocaleString('en-GB', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true});
+ uploads.push({id:Date.now(),student:st,task:tk,subDateInput:subDate.value,fileName,fileData,status,received:false,marks:'',remarks:'',receivedAt:'',depositionTime:depositionTime});
  localStorage.setItem('edu_up_final',JSON.stringify(uploads));
- fileData=''; document.getElementById('fileInput').value=''; upMsg.innerText='✅ Uploaded'; render();
+ fileData=''; document.getElementById('fileInput').value=''; upMsg.innerText='✅ Uploaded at '+depositionTime; render();
 }
-function teacherLogin(){let pin=prompt('Teacher PIN is 2026'); if(pin==='2026'){document.getElementById('studentMode').classList.add('hidden'); document.getElementById('teacherMode').classList.remove('hidden'); renderTeacher();}}
-function backToStudent(){document.getElementById('teacherMode').classList.add('hidden'); document.getElementById('studentMode').classList.remove('hidden'); render();}
+function teacherLogin(){ loginModal.classList.remove('hidden'); }
+function closeLogin(){ loginModal.classList.add('hidden'); pinInput.value=''; pinError.classList.add('hidden'); }
+function checkPin(){
+  if(pinInput.value==='2026'){ loginModal.classList.add('hidden'); pinInput.value=''; studentMode.classList.add('hidden'); teacherMode.classList.remove('hidden'); renderTeacher(); }
+  else{ pinError.classList.remove('hidden'); }
+}
+function backToStudent(){teacherMode.classList.add('hidden'); studentMode.classList.remove('hidden'); render();}
 function markReceived(id){
  let marks=document.getElementById('marks_'+id).value||'-';
  let rem=document.getElementById('rem_'+id).value||'Received';
  let u=uploads.find(x=>x.id==id); u.received=true; u.marks=marks; u.remarks=rem; u.receivedAt=new Date().toLocaleString();
  localStorage.setItem('edu_up_final',JSON.stringify(uploads)); renderTeacher(); render();
 }
-function deleteUpload(id){
- if(!confirm('Delete this upload? This will remove file permanently.'))return;
- uploads=uploads.filter(u=>u.id!=id); localStorage.setItem('edu_up_final',JSON.stringify(uploads)); renderTeacher(); render();
-}
+function deleteUpload(id){ if(!confirm('Delete?'))return; uploads=uploads.filter(u=>u.id!=id); localStorage.setItem('edu_up_final',JSON.stringify(uploads)); renderTeacher(); render(); }
 function render(){
- stSelect.innerHTML=students.length?students.map(s=>`<option value="${s.id}">${s.id} - ${s.name} (${s.year})</option>`).join(''):'<option>No student - Add first</option>';
- taskSelect.innerHTML=tasks.length?tasks.map(t=>`<option value="${t.id}">${t.sub} - ${t.title} Due:${t.due}</option>`).join(''):'<option>No task - Create first</option>';
+ stSelect.innerHTML=students.length?students.map(s=>`<option value="${s.id}">${s.id} - ${s.name}</option>`).join(''):'<option>No student</option>';
+ taskSelect.innerHTML=tasks.length?tasks.map(t=>`<option value="${t.id}">${t.type} - ${t.title}</option>`).join(''):'<option>No task</option>';
  upCount && (upCount.innerText=uploads.length);
- let myId=stSelect.value; let my=uploads.filter(u=>u.student.id==myId);
- myList.innerHTML=my.length?'<h3 class="font-bold mb-2">My Uploaded Files - No Delete, You can re-upload if wrong</h3>'+my.map(m=>`<div class="bg-white p-3 rounded shadow mb-2 text-sm flex justify-between"><div><b>${m.task.title}</b> - ${m.fileName}<br>Sub: ${m.subDateInput} | ${m.status}<br><a href="${m.fileData}" download="${m.fileName}" target="_blank" class="text-blue-600 underline font-bold">📎 View File: ${m.fileName}</a><br>${m.received?`Marks: ${m.marks} | Remarks: ${m.remarks}`:''}</div><div>${m.received?`<span class="bg-green-100 text-green-700 px-2 py-1 rounded font-bold">✅ RECEIVED<br><span class="text-[10px]">${m.receivedAt}</span></span>`:`<span class="bg-orange-100 text-orange-700 px-2 py-1 rounded">⏳ Waiting for Teacher</span>`}</div></div>`).join(''):'';
+ let my=uploads.filter(u=>u.student.id==stSelect.value);
+ myList.innerHTML=my.length?my.map(m=>`<div class="bg-white p-3 rounded shadow mb-2 text-sm flex justify-between"><div><b>${m.task.type}</b> - ${m.task.title}<br>📁 ${m.fileName} | Sub: ${m.subDateInput} | ${m.status}<br>⏰ <b>Deposition: ${m.depositionTime}</b><br><a href="${m.fileData}" download="${m.fileName}" class="text-blue-600 underline">📎 View File</a><br>Marks: ${m.marks||'-'} | ${m.remarks||''}</div><div>${m.received?`<span class="bg-green-100 text-green-700 px-2 py-1 rounded">✅ RECEIVED</span>`:`<span class="bg-orange-100 px-2 py-1 rounded">⏳ Waiting</span>`}</div></div>`).join(''):'';
  renderTeacher();
 }
 function renderTeacher(){
  teacherTable.innerHTML=uploads.map(u=>`<tr class="border-b">
- <td class="p-2"><b>${u.student.id}</b> ${u.student.name}<br>${u.student.year}</td>
- <td>${u.task.sub}<br>${u.task.title}<br><span class="text-[10px]">Due:${u.task.due}</span></td>
- <td><a href="${u.fileData}" download="${u.fileName}" target="_blank" class="bg-blue-50 text-blue-700 px-2 py-1 rounded underline font-bold">📎 ${u.fileName}</a></td>
+ <td class="p-2"><b>${u.student.id}</b> ${u.student.name}</td>
+ <td>${u.task.type}<br><span class="text-[10px]">${u.task.title}</span></td>
+ <td><a href="${u.fileData}" download="${u.fileName}" class="text-blue-600 underline font-bold">📎 ${u.fileName}</a><br><span class="text-[10px] bg-yellow-100 px-1 rounded">⏰ ${u.depositionTime}</span></td>
  <td>${u.subDateInput}<br><span class="text-[10px] ${u.status.includes('On Time')?'text-green-600':'text-red-600'}">${u.status}</span></td>
  <td>${u.received?`<b>${u.marks}</b>`:`<input id="marks_${u.id}" placeholder="9/10" class="w-full border p-1 rounded">`}</td>
- <td>${u.received?`${u.remarks}<br><span class="text-[9px]">${u.receivedAt}</span>`:`<input id="rem_${u.id}" placeholder="Good" class="w-full border p-1 rounded">`}</td>
- <td class="p-1"><div class="flex flex-col gap-1">${u.received?'':`<button onclick="markReceived(${u.id})" class="bg-green-600 text-white px-2 py-1 rounded font-bold text-[11px]">RECEIVED</button>`}<button onclick="deleteUpload(${u.id})" class="bg-red-100 text-red-600 px-2 py-1 rounded text-[11px]">🗑️ Delete</button></div></td>
+ <td>${u.received?`${u.remarks}`:`<input id="rem_${u.id}" placeholder="Remarks" class="w-full border p-1 rounded">`}</td>
+ <td><div class="flex flex-col gap-1">${u.received?'':`<button onclick="markReceived(${u.id})" class="bg-green-600 text-white px-2 py-1 rounded text-[11px]">RECEIVED</button>`}<button onclick="deleteUpload(${u.id})" class="bg-red-100 text-red-600 px-2 py-1 rounded text-[11px]">🗑️ Delete</button></div></td>
  </tr>`).join('')||'<tr><td colspan=7 class="text-center p-4">No files</td></tr>';
 }
 render(); cDue.valueAsDate=new Date(); subDate.valueAsDate=new Date(); stSelect.addEventListener('change',render);
