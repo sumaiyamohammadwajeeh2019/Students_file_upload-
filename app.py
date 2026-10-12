@@ -1,185 +1,160 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for
-import os, json, time
+from flask import Flask, render_template, request, jsonify, send_from_directory
+import sqlite3, os
 from datetime import datetime
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-
-# --- CONFIG ---
 UPLOAD_FOLDER = 'uploads'
-DATA_FOLDER = 'data'
-DB_FILE = os.path.join(DATA_FOLDER, 'db.json')
-ALLOWED_EXT = {'pdf','jpg','jpeg','png','doc','docx','ppt','pptx','zip'}
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(DATA_FOLDER, exist_ok=True)
-os.makedirs('templates', exist_ok=True)
+DB = 'edudeposit.db'
 
-# Create DB if not exists
-if not os.path.exists(DB_FILE):
-    with open(DB_FILE, 'w') as f:
-        json.dump({"students":[],"tasks":[],"uploads":[]}, f, indent=2)
+def init_db():
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS colleges (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE, teacher_name TEXT, pin TEXT, code TEXT, created TEXT
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS students (
+        id TEXT PRIMARY KEY, name TEXT, institute TEXT, college_code TEXT,
+        level TEXT, year TEXT, teacher_name TEXT
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT, sub TEXT, title TEXT, due TEXT
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS uploads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, student_id TEXT, student_name TEXT,
+        institute TEXT, level TEXT, college_code TEXT, task_type TEXT, task_title TEXT,
+        task_sub TEXT, due_date TEXT, sub_date TEXT, file_name TEXT, file_path TEXT,
+        status TEXT, deposition_time TEXT, received INTEGER DEFAULT 0,
+        marks TEXT, remarks TEXT, received_at TEXT
+    )""")
+    conn.commit()
+    conn.close()
 
-def load_db():
-    try:
-        with open(DB_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        return {"students":[],"tasks":[],"uploads":[]}
+init_db()
 
-def save_db(db):
-    with open(DB_FILE, 'w', encoding='utf-8') as f:
-        json.dump(db, f, indent=2, ensure_ascii=False)
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.',1)[1].lower() in ALLOWED_EXT
-
-# --- MAIN PAGES ---
 @app.route('/')
-def home():
+def index():
     return render_template('index.html')
 
-@app.route('/manifest.json')
-def manifest():
-    return send_from_directory('.', 'manifest.json')
+@app.route('/api/colleges', methods=['GET','POST'])
+def colleges():
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    if request.method == 'POST':
+        d = request.json
+        try:
+            c.execute("INSERT INTO colleges (name,teacher_name,pin,code,created) VALUES (?,?,?,?,?)",
+                      (d['name'], d['teacher_name'], d['pin'], d['code'], datetime.now().isoformat()))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return jsonify({"error":"exists"}), 400
+    c.execute("SELECT name,teacher_name,pin,code FROM colleges")
+    rows = [{"name":r[0],"teacher_name":r[1],"pin":r[2],"code":r[3]} for r in c.fetchall()]
+    conn.close()
+    return jsonify(rows)
 
-@app.route('/sw.js')
-def sw():
-    return send_from_directory('.', 'sw.js')
+@app.route('/api/students', methods=['GET','POST'])
+def students_route():
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    if request.method == 'POST':
+        d = request.json
+        c.execute("REPLACE INTO students (id,name,institute,college_code,level,year,teacher_name) VALUES (?,?,?,?,?,?,?)",
+                  (d['id'], d['name'], d['institute'], d['college_code'], d['level'], d['year'], d.get('teacher_name','')))
+        conn.commit()
+    c.execute("SELECT * FROM students")
+    rows = [{"id":r[0],"name":r[1],"institute":r[2],"college_code":r[3],"level":r[4],"year":r[5],"teacher_name":r[6]} for r in c.fetchall()]
+    conn.close()
+    return jsonify(rows)
 
-@app.route('/uploads/<path:filename>')
-def uploaded_file(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
-
-# --- API: STUDENTS ---
-@app.route('/api/students', methods=['GET'])
-def get_students():
-    db = load_db()
-    return jsonify(db['students'])
-
-@app.route('/api/students', methods=['POST'])
-def add_student():
-    db = load_db()
-    data = request.json
-    if any(s['id'] == data['id'] for s in db['students']):
-        return jsonify({"error":"Already exists"}), 400
-    db['students'].append(data)
-    save_db(db)
-    return jsonify({"ok":True})
-
-# --- API: TASKS ---
-@app.route('/api/tasks', methods=['GET'])
-def get_tasks():
-    db = load_db()
-    return jsonify(db['tasks'])
-
-@app.route('/api/tasks', methods=['POST'])
-def add_task():
-    db = load_db()
-    data = request.json
-    data['id'] = int(time.time()*1000)
-    # Clean type - ensure no subject name (just as you requested)
-    db['tasks'].append(data)
-    save_db(db)
-    return jsonify({"ok":True, "id":data['id']})
-
-# --- API: UPLOADS (WITH AUTO DEPOSITION TIME) ---
-@app.route('/api/uploads', methods=['GET'])
-def get_uploads():
-    db = load_db()
-    return jsonify(db['uploads'])
+@app.route('/api/tasks', methods=['GET','POST'])
+def tasks_api():
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    if request.method == 'POST':
+        d = request.json
+        c.execute("INSERT INTO tasks (type,sub,title,due) VALUES (?,?,?,?)", (d['type'], d['sub'], d['title'], d['due']))
+        conn.commit()
+    c.execute("SELECT id,type,sub,title,due FROM tasks")
+    rows = [{"id":r[0],"type":r[1],"sub":r[2],"title":r[3],"due":r[4]} for r in c.fetchall()]
+    conn.close()
+    return jsonify(rows)
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
-    db = load_db()
-
     student_id = request.form.get('student_id')
-    student_name = request.form.get('student_name')
-    student_year = request.form.get('student_year')
     task_id = request.form.get('task_id')
-    task_type = request.form.get('task_type')
-    task_title = request.form.get('task_title')
-    task_due = request.form.get('task_due')
-    sub_date = request.form.get('sub_date') # user selected date
-
-    # Validation
-    if 'file' not in request.files:
-        return jsonify({"error":"No file"}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error":"No filename"}), 400
-
-    # Secure save
-    filename = f"{int(time.time())}_{secure_filename(file.filename)}"
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
-
-    # AUTO DEPOSITION TIME - Server Time
-    now = datetime.now()
-    depositionTime = now.strftime("%d %b %Y, %I:%M:%S %p") # e.g. 11 Oct 2026, 10:45:32 AM
-    depositionISO = now.isoformat()
-
-    # Calculate status
+    sub_date = request.form.get('sub_date')
+    file = request.files.get('file')
+    if not file:
+        return jsonify({"error":"no file"}), 400
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("SELECT * FROM students WHERE id=?", (student_id,))
+    s = c.fetchone()
+    c.execute("SELECT * FROM tasks WHERE id=?", (task_id,))
+    t = c.fetchone()
+    if not s or not t:
+        return jsonify({"error":"student/task not found"}), 400
+    filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secure_filename(file.filename)}"
+    path = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(path)
+    deposition = datetime.now().strftime("%d %b %Y, %I:%M:%S %p")
     try:
-        due_dt = datetime.strptime(task_due, "%Y-%m-%d")
-        sub_dt = datetime.strptime(sub_date, "%Y-%m-%d")
-        diff = (sub_dt - due_dt).days
-        status = "On Time" if diff <= 0 else f"Late {diff}d"
+        due = datetime.strptime(t[4], "%Y-%m-%d").date()
+        sub = datetime.strptime(sub_date, "%Y-%m-%d").date()
+        diff = (sub - due).days
+        status = "On Time" if diff<=0 else f"Late {diff}d"
     except:
         status = "On Time"
+    c.execute("""INSERT INTO uploads (student_id,student_name,institute,level,college_code,
+        task_type,task_title,task_sub,due_date,sub_date,file_name,file_path,status,deposition_time)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (s[0], s[1], s[2], s[4], s[3], t[1], t[3], t[2], t[4], sub_date, file.filename, path, status, deposition))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok":True, "deposition":deposition})
 
-    record = {
-        "id": int(time.time()*1000),
-        "student": {"id":student_id, "name":student_name, "year":student_year},
-        "task": {"id":task_id, "type":task_type, "title":task_title, "due":task_due},
-        "subDateInput": sub_date,
-        "fileName": file.filename,
-        "savedName": filename,
-        "filePath": f"/uploads/{filename}",
-        "status": status,
-        "depositionTime": depositionTime,
-        "depositionISO": depositionISO,
-        "received": False,
-        "marks": "",
-        "remarks": "",
-        "receivedAt": ""
-    }
+@app.route('/api/uploads')
+def get_uploads():
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("SELECT * FROM uploads ORDER BY id DESC")
+    cols = [d[0] for d in c.description]
+    rows = [dict(zip(cols, r)) for r in c.fetchall()]
+    conn.close()
+    return jsonify(rows)
 
-    db['uploads'].append(record)
-    save_db(db)
-    return jsonify({"ok":True, "depositionTime":depositionTime, "record":record})
-
-# --- API: TEACHER ACTIONS ---
-@app.route('/api/received', methods=['POST'])
-def mark_received():
-    db = load_db()
-    data = request.json
-    uid = data.get('id')
-    for u in db['uploads']:
-        if u['id'] == uid:
-            u['received'] = True
-            u['marks'] = data.get('marks','')
-            u['remarks'] = data.get('remarks','')
-            u['receivedAt'] = datetime.now().strftime("%d %b %Y, %I:%M:%S %p")
-            save_db(db)
-            return jsonify({"ok":True})
-    return jsonify({"error":"Not found"}), 404
-
-@app.route('/api/delete', methods=['POST'])
-def delete_upload():
-    db = load_db()
-    data = request.json
-    uid = data.get('id')
-    # Delete file from disk
-    for u in db['uploads']:
-        if u['id'] == uid and 'savedName' in u:
-            try: os.remove(os.path.join(UPLOAD_FOLDER, u['savedName']))
-            except: pass
-    db['uploads'] = [u for u in db['uploads'] if u['id']!= uid]
-    save_db(db)
+@app.route('/api/receive', methods=['POST'])
+def receive():
+    d = request.json
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("UPDATE uploads SET received=1, marks=?, remarks=?, received_at=? WHERE id=?",
+              (d.get('marks',''), d.get('remarks',''), datetime.now().strftime("%d %b %Y, %I:%M:%S %p"), d['id']))
+    conn.commit()
+    conn.close()
     return jsonify({"ok":True})
 
-# --- RUN ---
+@app.route('/uploads/<path:filename>')
+def download(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+
+@app.route('/api/clean', methods=['POST'])
+def clean():
+    conn = sqlite3.connect(DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM students")
+    c.execute("DELETE FROM uploads")
+    c.execute("DELETE FROM tasks")
+    conn.commit()
+    conn.close()
+    for f in os.listdir(UPLOAD_FOLDER):
+        try: os.remove(os.path.join(UPLOAD_FOLDER,f))
+        except: pass
+    return jsonify({"ok":True})
+
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
