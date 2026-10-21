@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduDeposit Global - Dr. Sumaiya Mohammad</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-100">
+<header class="bg-[#0d47a1] text-white p-4 sticky top-0 z-50 flex justify-between">
+<h1 class="font-bold text-[14px]">🎓 EduDeposit Global - FILE SYSTEM<br><span class="text-[10px] font-normal">Auto Time of Deposition | By Dr. Sumaiya Mohammad</span></h1>
+<button onclick="teacherLogin()" class="bg-white text-blue-900 px-3 py-1 rounded text-xs font-bold">Teacher Login</button>
+</header>
+
+<div id="loginModal" class="hidden fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+  <div class="bg-white p-6 rounded-xl w-full max-w-sm">
+    <div id="loginTab"><h2 class="font-bold mb-3">Teacher Login</h2><select id="loginInstitute" class="w-full border p-3 rounded mb-2 text-sm"></select><input id="pinInput" type="password" placeholder="PIN" class="w-full border p-3 rounded mb-3 text-sm"><button onclick="checkPin()" class="w-full bg-[#0d47a1] text-white py-3 rounded font-bold">Login</button></div>
+    <div id="createTab" class="hidden"><h2 class="font-bold mb-3">Create College</h2><input id="newInstitute" placeholder="College Name" class="w-full border p-3 rounded mb-2 text-sm"><input id="newTeacherName" placeholder="Sumaiya Mohammad" class="w-full border-2 border-blue-300 p-3 rounded mb-2 text-sm"><input id="newPin" type="password" placeholder="PIN" class="w-full border p-3 rounded mb-2 text-sm"><button onclick="createCollege()" class="w-full bg-green-600 text-white py-3 rounded font-bold">Create & Get Code</button><div id="createResult" class="mt-3 p-3 bg-green-50 border rounded hidden text-sm"></div></div>
+    <div class="flex gap-2 mt-4"><button onclick="showTab('login')" class="flex-1 bg-gray-200 py-2 rounded text-xs">Login</button><button onclick="showTab('create')" class="flex-1 bg-gray-200 py-2 rounded text-xs">Create</button></div>
+    <button onclick="closeLogin()" class="w-full bg-gray-100 py-2 rounded mt-2 text-sm">Cancel</button><p id="pinError" class="text-red-600 text-xs mt-2 hidden text-center"></p>
+  </div>
+</div>
+
+<div id="studentMode" class="p-3 max-w-6xl mx-auto">
+<div class="grid md:grid-cols-3 gap-3">
+<div class="bg-white p-4 rounded-xl shadow"><h2 class="font-bold mb-3 text-sm">+ Add Student</h2><input id="sRoll" placeholder="ID" class="w-full border p-3 mb-2 rounded text-sm"><input id="sName" placeholder="Name" class="w-full border p-3 mb-2 rounded text-sm"><select id="sInstitute" class="w-full border p-3 mb-2 rounded text-sm"></select><input id="sCollegeCode" placeholder="SHA1275-AZ" class="w-full border-2 border-red-300 p-3 mb-2 rounded text-sm"><select id="sLevel" class="w-full border p-3 mb-2 rounded text-sm"><option>MBBS 1st Year</option><option selected>MBBS 2nd Year</option><option>MBBS 3rd Year</option></select><input id="sYear" value="2nd yr" class="w-full border p-3 mb-2 rounded text-sm"><button onclick="registerStudent()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">Save</button><p id="regMsg" class="text-xs text-center mt-2 text-green-600"></p></div>
+<div class="bg-white p-4 rounded-xl shadow"><h2 class="font-bold mb-3 text-sm">+ Create Task</h2><select id="cType" class="w-full border p-2 mb-2 rounded text-sm"><option>Integrated Teaching Assignment</option></select><input id="cSub" value="Physiology" class="w-full border p-2 mb-2 rounded text-sm"><input id="cTitle" value="COPD - IT Assignment" class="w-full border p-2 mb-2 rounded text-sm"><input id="cDue" type="date" class="w-full border p-2 mb-3 rounded text-sm"><button onclick="createTask()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold">Create Task</button></div>
+<div class="bg-white p-4 rounded-xl shadow border-2 border-green-500"><h2 class="font-bold mb-3 text-sm">Upload Assignment (Auto Time)</h2><select id="stSelect" class="w-full border p-2 mb-2 rounded text-sm"></select><select id="taskSelect" class="w-full border p-2 mb-2 rounded text-sm"></select><input id="subDate" type="date" class="w-full border p-2 mb-2 rounded text-sm"><input type="file" id="fileInput" class="w-full border p-2 mb-2 rounded text-sm"><button onclick="uploadFile()" id="upBtn" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold">Upload to Supabase</button><p id="upMsg" class="text-xs text-center mt-2 text-green-600"></p></div>
+</div>
+<div class="mt-4"><h3 class="font-bold text-sm mb-2">My Submissions - Full Details (Live from Supabase)</h3><div id="myList"></div></div>
+</div>
+
+<div id="teacherMode" class="hidden p-3 max-w-7xl mx-auto"><div class="bg-white p-3 rounded shadow mb-3 flex justify-between items-center text-sm"><div><b id="teacherNameShow"></b> - <span id="teacherInstituteShow"></span> | <span id="teacherCodeShow" class="bg-yellow-100 px-2 font-mono"></span> | Total: <b id="upCount">0</b></div><div class="flex gap-2"><input id="teacherSearch" onkeyup="renderTeacher()" placeholder="Search" class="border p-1 rounded text-xs"><button onclick="backToStudent()" class="bg-slate-200 px-3 py-1 rounded">← Back</button><button onclick="loadFromSupabase()" class="bg-blue-100 px-3 py-1 rounded">Refresh</button></div></div><div class="bg-white rounded-xl shadow overflow-auto"><table class="w-full text-[11px]"><thead class="bg-[#0d47a1] text-white"><tr><th class="p-2 text-left">Student</th><th>File + Time</th><th>Status</th><th>Marks</th><th>Action</th></tr></thead><tbody id="teacherTable"></tbody></table></div></div>
+
+<script>
+const SUPABASE_URL="https://wbcqhfjzbuonrqvxklia.supabase.co";
+const SUPABASE_KEY="sb_publishable_wtZFGexua7kU3GEIVzBb2g_VUKMm9-G";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+let colleges=JSON.parse(localStorage.getItem('edu_col_final')||'[]');
+let students=JSON.parse(localStorage.getItem('edu_stu_final')||'[]');
+let tasks=JSON.parse(localStorage.getItem('edu_task_final')||'[]');
+let uploads=[];
+let currentTeacherCollege=null;
+let selectedFile=null;
+
+document.getElementById('fileInput').addEventListener('change', e=>{ selectedFile=e.target.files[0]; });
+function showTab(t){ loginTab.classList.toggle('hidden',t!='login'); createTab.classList.toggle('hidden',t!='create'); }
+function teacherLogin(){ loadCollegeOptions(); loginModal.classList.remove('hidden'); showTab('login'); }
+function closeLogin(){ loginModal.classList.add('hidden'); }
+function genCode(){ return 'SHA'+Math.floor(1000+Math.random()*9000)+'-AZ'; }
+function createCollege(){ let code=genCode(); let col={name:newInstitute.value.trim(),teacher_name:newTeacherName.value.trim(),pin:newPin.value,code:code}; colleges.push(col); localStorage.setItem('edu_col_final',JSON.stringify(colleges)); createResult.classList.remove('hidden'); createResult.innerHTML=`Code: <b class="bg-yellow-200 px-2">${col.code}</b>`; loadCollegeOptions(); }
+function loadCollegeOptions(){ sInstitute.innerHTML=colleges.map(c=>`<option value="${c.name}">${c.name} [${c.code}]</option>`).join('')||'<option>No college</option>'; loginInstitute.innerHTML=colleges.map(c=>`<option value="${c.name}">${c.name}</option>`).join('')||'<option>No college</option>'; }
+function registerStudent(){ let id=sRoll.value.trim(); students=students.filter(s=>s.id.toLowerCase()!=id.toLowerCase()); students.push({id:id,name:sName.value.trim(),institute:sInstitute.value,college_code:sCollegeCode.value.trim(),level:sLevel.value,year:sYear.value}); localStorage.setItem('edu_stu_final',JSON.stringify(students)); regMsg.innerText='✅ Saved'; renderLocal(); }
+function createTask(){ tasks.push({id:Date.now(),type:cType.value,sub:cSub.value,title:cTitle.value,due:cDue.value}); localStorage.setItem('edu_task_final',JSON.stringify(tasks)); renderLocal(); }
+function renderLocal(){
+  stSelect.innerHTML=students.map(s=>`<option value="${s.id}">${s.id} - ${s.name} (${s.level})</option>`).join('')||'<option>No student</option>';
+  taskSelect.innerHTML=tasks.map(t=>`<option value="${t.id}">${t.type} - ${t.title}</option>`).join('')||'<option>No task</option>';
+}
+
+async function loadFromSupabase(){
+  myList.innerHTML='<p class="text-center p-4">Loading from Supabase...</p>';
+  let {data, error} = await sb.from('submissions').select('*').order('created_at',{ascending:false}).limit(200);
+  if(error){ myList.innerHTML=`<p class="text-red-600 p-2">${error.message}</p>`; return; }
+  uploads = data.map(r=>({
+    id:r.id, file_url:r.file_url, fileName:r.file_name,
+    student:{id:r.roll, name:r.student_name, institute:r.institute, college_code:r.college_code, level:r.level},
+    task:{id:r.task_title, type:r.task_title, sub:r.task_sub, title:r.task_title, due:''},
+    subDateInput:r.sub_date_input, status:r.status, depositionTime:r.deposition_time,
+    received:r.received, marks:r.marks, remarks:r.remarks, receivedAt:r.received_at,
+    _raw:r
+  }));
+  render();
+  renderTeacher();
+}
+
+async function uploadFile(){
+  if(!stSelect.value) return alert('Select Student');
+  if(!selectedFile) return alert('Choose File');
+  let st=students.find(s=>s.id==stSelect.value); let tk=tasks.find(t=>t.id==taskSelect.value);
+  if(!st||!tk) return alert('Add student/task first');
+  upBtn.disabled=true; upMsg.innerText='Uploading to Supabase...';
+  try{
+    let safe=selectedFile.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    let path=`${st.id}_${Date.now()}_${safe}`;
+    let {error:upErr}=await sb.storage.from('assignments').upload(path, selectedFile);
+    if(upErr) throw upErr;
+    let {data:urlData}=sb.storage.from('assignments').getPublicUrl(path);
+    let dep=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+    let due=new Date(tk.due); let sub=new Date(subDate.value); let diff=Math.ceil((sub-due)/864e5); let status=diff<=0?'On Time':'Late '+diff+'d';
+    let {error:dbErr}=await sb.from('submissions').insert({
+      student_name:st.name, roll:st.id, task_title:tk.title, file_url:urlData.publicUrl, file_name:selectedFile.name,
+      institute:st.institute, college_code:st.college_code, level:st.level, task_sub:tk.sub,
+      sub_date_input:subDate.value, status:status, deposition_time:dep, received:false, marks:'', remarks:'', received_at:''
+    });
+    if(dbErr) throw dbErr;
+    upMsg.innerText='✅ Uploaded: '+dep; fileInput.value=''; selectedFile=null;
+    await loadFromSupabase();
+  }catch(e){ upMsg.innerText='❌ '+e.message; }
+  upBtn.disabled=false;
+}
+function checkPin(){ let col=colleges.find(c=>c.name==loginInstitute.value); if(!col||col.pin!=pinInput.value){ pinError.classList.remove('hidden'); pinError.innerText='Wrong PIN'; return; } currentTeacherCollege=col; loginModal.classList.add('hidden'); studentMode.classList.add('hidden'); teacherMode.classList.remove('hidden'); teacherNameShow.innerText=col.teacher_name; teacherInstituteShow.innerText=col.name; teacherCodeShow.innerText=col.code; renderTeacher(); }
+function backToStudent(){ teacherMode.classList.add('hidden'); studentMode.classList.remove('hidden'); }
+async function markReceived(id){
+  let marks=document.getElementById('marks_'+id).value||'8/10'; let rem=document.getElementById('rem_'+id).value||'very good';
+  let rt=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+  let {error}=await sb.from('submissions').update({received:true, marks:marks, remarks:rem, received_at:rt}).eq('id',id);
+  if(error) alert(error.message); else loadFromSupabase();
+}
+async function deleteUpload(id){ if(!confirm('Delete?')) return; await sb.from('submissions').delete().eq('id',id); loadFromSupabase(); }
+function render(){
+  let my=uploads.filter(u=>u.student.id==stSelect.value);
+  myList.innerHTML=my.map(m=>`<div class="bg-white p-4 rounded-xl shadow mb-3 border-l-4 border-blue-600 text-[13px] leading-7"><b>${m.task.type}(${m.task.sub||''})</b><br>📁 ${m.fileName} | ${m.status}<br>⏰ ${m.depositionTime} | 📅 ${m.subDateInput}<br>📎 <a href="${m.file_url}" target="_blank" class="text-blue-600 underline font-bold">View File</a> | Marks: ${m.marks||'-'} | ${m.remarks||''}<br>${m.received?`✅ <b>RECEIVED at ${m.receivedAt}</b>`:'⏳ Waiting for Teacher'} <button onclick="deleteUpload(${m.id})" class="text-red-500 ml-2">Delete</button></div>`).join('')||'<p class="text-center text-xs p-4 bg-white rounded">No submission - select student</p>';
+}
+function renderTeacher(){
+  let q=teacherSearch.value.toLowerCase();
+  let list=currentTeacherCollege?uploads.filter(u=>(u.student.institute||'').toLowerCase()==currentTeacherCollege.name.toLowerCase()):uploads;
+  if(q) list=list.filter(u=> (u.student.name+u.student.id+u.fileName).toLowerCase().includes(q));
+  upCount.innerText=list.length;
+  teacherTable.innerHTML=list.map(u=>`<tr class="border-b"><td class="p-2"><b>${u.student.id}</b> ${u.student.name}<br>${u.student.level||''}<br>${u.student.institute||''}</td><td><a href="${u.file_url}" target="_blank" class="text-blue-600 underline">${u.fileName}</a><br>${u.depositionTime||''}</td><td>${u.subDateInput||''}<br>${u.status||''}</td><td>${u.received?u.marks:`<input id="marks_${u.id}" value="8/10" class="border p-1 w-full">`}</td><td>${u.received?`${u.remarks||''}<br>${u.receivedAt||''}`:`<input id="rem_${u.id}" value="very good" class="border p-1 w-full"><button onclick="markReceived(${u.id})" class="bg-green-600 text-white px-2 py-1 rounded mt-1">RECEIVED</button>`}</td></tr>`).join('')||'<tr><td colspan=5 class="text-center p-4">No files</td></tr>';
+}
+renderLocal(); loadFromSupabase(); cDue.valueAsDate=new Date(); subDate.valueAsDate=new Date(); stSelect.addEventListener('change',render);
+</script>
+</body>
+</html>
